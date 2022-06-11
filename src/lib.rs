@@ -15,24 +15,26 @@ pub mod lexer {
 
         loop {
             match next_character {
-                Some(character) => {
-                    if is_letter(character) {
-                        let (maybe_next, token) = lex_word(character, characters);
-                        next_character = maybe_next;
-                        tokens.push(token);
-                    } else if is_digit(character) {
-                        let (maybe_next, token) = lex_digit(character, characters);
-                        next_character = maybe_next;
-                        tokens.push(token);
-                    } else if character == '(' {
-                        tokens.push(Token::LeftParen);
-                        next_character = characters.next();
-                    } else if character == ')' {
-                        tokens.push(Token::RightParen);
-                        next_character = characters.next();
-                    } else {
-                        next_character = characters.next();
-                    }
+                Some(letter @ 'A'..='z') => {
+                    let (maybe_next, token) = lex_word(letter, characters);
+                    next_character = maybe_next;
+                    tokens.push(token);
+                }
+                Some(digit @ '0'..='9') => {
+                    let (maybe_next, token) = lex_digit(digit, characters);
+                    next_character = maybe_next;
+                    tokens.push(token);
+                }
+                Some('(') => {
+                    tokens.push(Token::LeftParen);
+                    next_character = characters.next();
+                }
+                Some(')') => {
+                    tokens.push(Token::RightParen);
+                    next_character = characters.next();
+                }
+                Some(_) => {
+                    next_character = characters.next();
                 }
                 None => {
                     break;
@@ -47,42 +49,41 @@ pub mod lexer {
         leading_character: char,
         characters: &mut impl Iterator<Item = char>,
     ) -> (Option<char>, Token) {
-        let mut word = String::from(leading_character);
+        let to_word_token = |text: String| Token::Word(text);
 
-        for character in characters {
-            if is_letter(character) {
-                word.push(character);
-            } else {
-                return (Some(character), Token::Word(word));
-            }
-        }
+        let is_letter = |character: char| ('A'..'z').contains(&character);
 
-        return (None, Token::Word(word));
+        return lex_token(leading_character, &is_letter, &to_word_token, characters);
     }
 
     fn lex_digit(
         leading_digit: char,
         characters: &mut impl Iterator<Item = char>,
     ) -> (Option<char>, Token) {
-        let mut word = String::from(leading_digit);
+        let to_integer_token = |text: String| Token::Integer(text.parse().unwrap());
+
+        let is_digit = |character: char| ('0'..='9').contains(&character);
+
+        return lex_token(leading_digit, &is_digit, &to_integer_token, characters);
+    }
+
+    fn lex_token(
+        leading_character: char,
+        should_include: &dyn Fn(char) -> bool,
+        to_token: &dyn Fn(String) -> Token,
+        characters: &mut impl Iterator<Item = char>,
+    ) -> (Option<char>, Token) {
+        let mut characters_to_include = String::from(leading_character);
 
         for character in characters {
-            if is_digit(character) {
-                word.push(character);
+            if should_include(character) {
+                characters_to_include.push(character);
             } else {
-                return (Some(character), Token::Integer(word.parse().unwrap()));
+                return (Some(character), to_token(characters_to_include));
             }
         }
 
-        return (None, Token::Word(word));
-    }
-
-    fn is_letter(character: char) -> bool {
-        return character >= 'A' && character <= 'z';
-    }
-
-    fn is_digit(character: char) -> bool {
-        return character >= '0' && character <= '9';
+        return (None, to_token(characters_to_include));
     }
 
     #[cfg(test)]
