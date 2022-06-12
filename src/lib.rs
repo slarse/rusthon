@@ -6,6 +6,7 @@ pub mod lexer {
         RightParen,
         Integer(i64),
         Word(String),
+        Error(String),
     }
 
     pub fn tokenize(characters: &mut impl Iterator<Item = char>) -> Vec<Token> {
@@ -33,7 +34,8 @@ pub mod lexer {
                     tokens.push(Token::RightParen);
                     next_character = characters.next();
                 }
-                Some(_) => {
+                Some(error) => {
+                    tokens.push(Token::Error(error.to_string()));
                     next_character = characters.next();
                 }
                 None => {
@@ -103,6 +105,21 @@ pub mod lexer {
 
             let actual_tokenization = tokenize(&mut input.chars());
 
+            assert_vectors_equal(&actual_tokenization, &expected_tokenization);
+        }
+
+        #[test]
+        fn lex_bad_character() {
+            let input = "print(;)";
+            let expected_tokenization = vec![
+                Token::Word("print".to_string()),
+                Token::LeftParen,
+                Token::Error(";".to_string()),
+                Token::RightParen,
+            ];
+
+            let actual_tokenization = tokenize(&mut input.chars());
+            
             assert_vectors_equal(&actual_tokenization, &expected_tokenization);
         }
 
