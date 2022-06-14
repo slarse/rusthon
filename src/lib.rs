@@ -1,4 +1,5 @@
 pub mod lexer {
+    use std::iter::Peekable;
 
     #[derive(Debug, Eq, PartialEq)]
     pub enum Token {
@@ -9,34 +10,71 @@ pub mod lexer {
         Error(String),
     }
 
-    pub fn tokenize(characters: &mut impl Iterator<Item = char>) -> Vec<Token> {
-        let mut next_character = characters.next();
+    struct Tokenizer<I> {
+        characters: I,
+    }
 
-        let mut tokens = Vec::new();
+    impl<I: Iterator<Item = char>> Iterator for Tokenizer<Peekable<I>> {
+        type Item = Token;
 
-        loop {
-            match next_character {
-                Some(letter @ 'A'..='z') => {
-                    let (maybe_next, token) = lex_word(letter, characters);
-                    next_character = maybe_next;
-                    tokens.push(token);
+        fn next(&mut self) -> Option<Self::Item> {
+            match self.characters.peek() {
+                Some('A'..='z') => {
+                    let token = lex_word(&mut self.characters);
+                    Some(token)
                 }
-                Some(digit @ '0'..='9') => {
-                    let (maybe_next, token) = lex_digit(digit, characters);
-                    next_character = maybe_next;
-                    tokens.push(token);
+                Some('0'..='9') => {
+                    let token = lex_digit(&mut self.characters);
+                    Some(token)
                 }
                 Some('(') => {
-                    tokens.push(Token::LeftParen);
-                    next_character = characters.next();
+                    self.characters.next();
+                    Some(Token::LeftParen)
                 }
                 Some(')') => {
-                    tokens.push(Token::RightParen);
-                    next_character = characters.next();
+                    self.characters.next();
+                    Some(Token::RightParen)
                 }
-                Some(error) => {
-                    tokens.push(Token::Error(error.to_string()));
-                    next_character = characters.next();
+                Some(_) => {
+                    let error = self.characters.next().unwrap();
+                    Some(Token::Error(error.to_string()))
+                }
+                None => None,
+            }
+        }
+    }
+
+    fn lex_word(characters: &mut Peekable<impl Iterator<Item = char>>) -> Token {
+        let to_word_token = |text: String| Token::Word(text);
+
+        let is_letter = |character: &char| ('A'..'z').contains(&character);
+
+        return lex_token(&is_letter, &to_word_token, characters);
+    }
+
+    fn lex_digit(characters: &mut Peekable<impl Iterator<Item = char>>) -> Token {
+        let to_integer_token = |text: String| Token::Integer(text.parse().unwrap());
+
+        let is_digit = |character: &char| ('0'..='9').contains(&character);
+
+        return lex_token(&is_digit, &to_integer_token, characters);
+    }
+
+    fn lex_token(
+        should_include: &dyn Fn(&char) -> bool,
+        to_token: &dyn Fn(String) -> Token,
+        characters: &mut Peekable<impl Iterator<Item = char>>,
+    ) -> Token {
+        let mut characters_to_include = String::new();
+
+        loop {
+            match characters.peek() {
+                Some(character) => {
+                    if should_include(character) {
+                        characters_to_include.push(characters.next().unwrap());
+                    } else {
+                        break;
+                    }
                 }
                 None => {
                     break;
@@ -44,48 +82,13 @@ pub mod lexer {
             }
         }
 
-        tokens
+        return to_token(characters_to_include);
     }
 
-    fn lex_word(
-        leading_character: char,
-        characters: &mut impl Iterator<Item = char>,
-    ) -> (Option<char>, Token) {
-        let to_word_token = |text: String| Token::Word(text);
-
-        let is_letter = |character: char| ('A'..'z').contains(&character);
-
-        return lex_token(leading_character, &is_letter, &to_word_token, characters);
-    }
-
-    fn lex_digit(
-        leading_digit: char,
-        characters: &mut impl Iterator<Item = char>,
-    ) -> (Option<char>, Token) {
-        let to_integer_token = |text: String| Token::Integer(text.parse().unwrap());
-
-        let is_digit = |character: char| ('0'..='9').contains(&character);
-
-        return lex_token(leading_digit, &is_digit, &to_integer_token, characters);
-    }
-
-    fn lex_token(
-        leading_character: char,
-        should_include: &dyn Fn(char) -> bool,
-        to_token: &dyn Fn(String) -> Token,
-        characters: &mut impl Iterator<Item = char>,
-    ) -> (Option<char>, Token) {
-        let mut characters_to_include = String::from(leading_character);
-
-        for character in characters {
-            if should_include(character) {
-                characters_to_include.push(character);
-            } else {
-                return (Some(character), to_token(characters_to_include));
-            }
+    pub fn tokenize(characters: impl Iterator<Item = char>) -> impl Iterator<Item = Token> {
+        Tokenizer {
+            characters: characters.peekable(),
         }
-
-        return (None, to_token(characters_to_include));
     }
 
     #[cfg(test)]
@@ -103,9 +106,9 @@ pub mod lexer {
                 Token::RightParen,
             ];
 
-            let actual_tokenization = tokenize(&mut input.chars());
+            let actual_tokenization = tokenize(input.chars());
 
-            assert_vectors_equal(&actual_tokenization, &expected_tokenization);
+            assert_vectors_equal(&actual_tokenization.collect(), &expected_tokenization);
         }
 
         #[test]
@@ -118,9 +121,9 @@ pub mod lexer {
                 Token::RightParen,
             ];
 
-            let actual_tokenization = tokenize(&mut input.chars());
-            
-            assert_vectors_equal(&actual_tokenization, &expected_tokenization);
+            let actual_tokenization = tokenize(input.chars());
+
+            assert_vectors_equal(&actual_tokenization.collect(), &expected_tokenization);
         }
 
         fn assert_vectors_equal<T: Debug + Eq>(actual: &Vec<T>, expected: &Vec<T>) {
