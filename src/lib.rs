@@ -10,37 +10,46 @@ pub mod lexer {
         Error(String),
     }
 
+    pub struct TokenInfo {
+        token: Token,
+        position: u32,
+    }
+
     struct Tokenizer<I> {
         characters: I,
     }
 
     impl<I: Iterator<Item = char>> Iterator for Tokenizer<Peekable<I>> {
-        type Item = Token;
+        type Item = TokenInfo;
 
         fn next(&mut self) -> Option<Self::Item> {
-            match self.characters.peek() {
+            let token = match self.characters.peek() {
                 Some('A'..='z') => {
                     let token = lex_word(&mut self.characters);
-                    Some(token)
+                    token
                 }
                 Some('0'..='9') => {
                     let token = lex_digit(&mut self.characters);
-                    Some(token)
+                    token
                 }
                 Some('(') => {
                     self.characters.next();
-                    Some(Token::LeftParen)
+                    Token::LeftParen
                 }
                 Some(')') => {
                     self.characters.next();
-                    Some(Token::RightParen)
+                    Token::RightParen
                 }
                 Some(_) => {
                     let error = self.characters.next().unwrap();
-                    Some(Token::Error(error.to_string()))
+                    Token::Error(error.to_string())
                 }
-                None => None,
-            }
+                None => return None,
+            };
+
+
+            // TODO make position "real"
+            Some(TokenInfo { token, position: 0 })
         }
     }
 
