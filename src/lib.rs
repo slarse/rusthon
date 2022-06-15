@@ -6,7 +6,7 @@ pub mod lexer {
         LeftParen,
         RightParen,
         Integer(i64),
-        Word(String),
+        Identifier(String),
         Error(String),
     }
 
@@ -45,7 +45,7 @@ pub mod lexer {
     }
 
     fn lex_word(characters: &mut Peekable<impl Iterator<Item = char>>) -> Token {
-        let to_word_token = |text: String| Token::Word(text);
+        let to_word_token = |text: String| Token::Identifier(text);
 
         let is_letter = |character: &char| ('A'..'z').contains(&character);
 
@@ -100,7 +100,7 @@ pub mod lexer {
         fn lex_print_1() {
             let input = "print(1)".to_string();
             let expected_tokenization = vec![
-                Token::Word("print".to_string()),
+                Token::Identifier("print".to_string()),
                 Token::LeftParen,
                 Token::Integer(1),
                 Token::RightParen,
@@ -115,7 +115,7 @@ pub mod lexer {
         fn lex_bad_character() {
             let input = "print(;)";
             let expected_tokenization = vec![
-                Token::Word("print".to_string()),
+                Token::Identifier("print".to_string()),
                 Token::LeftParen,
                 Token::Error(";".to_string()),
                 Token::RightParen,
