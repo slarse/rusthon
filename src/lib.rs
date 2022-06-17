@@ -173,7 +173,7 @@ pub mod parser {
 
     pub fn parse(tokens: Peekable<impl Iterator<Item = TokenInfo>>) -> Result<Program, String> {
         let mut mutable_tokens = tokens;
-        let program = Program::Expressions(parse_expressions(&mut mutable_tokens)?);
+        let program = program(parse_expressions(&mut mutable_tokens)?);
         Result::Ok(program)
     }
 
@@ -190,7 +190,7 @@ pub mod parser {
             Token::Identifier(identifier) => match identifier.as_str() {
                 "print" => {
                     consume(Token::LeftParen, tokens)?;
-                    let token = Expression::Print(Box::new(parse_integer(tokens)));
+                    let token = print(parse_integer(tokens));
                     consume(Token::RightParen, tokens)?;
                     Result::Ok(token)
                 }
@@ -212,9 +212,21 @@ pub mod parser {
 
     fn parse_integer(tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>) -> Expression {
         match tokens.next().unwrap().token {
-            Token::Integer(value) => Expression::Integer(value),
+            Token::Integer(value) => int(value),
             _ => panic!(),
         }
+    }
+
+    fn int(value: i64) -> Expression {
+        Expression::Integer(value)
+    }
+
+    fn print(expression: Expression) -> Expression {
+        Expression::Print(Box::new(expression))
+    }
+
+    fn program(expressions: Vec<Expression>) -> Program {
+        Program::Expressions(expressions)
     }
 
     #[cfg(test)]
@@ -227,8 +239,7 @@ pub mod parser {
             let input = "print(1)".to_string();
             let tokens = lexer::tokenize(input.chars());
 
-            let expected_ast =
-                Program::Expressions(vec![Expression::Print(Box::new(Expression::Integer(1)))]);
+            let expected_ast = program(vec![print(int(1))]);
 
             let ast = parse(tokens.peekable()).unwrap();
 
