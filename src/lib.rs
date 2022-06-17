@@ -11,8 +11,8 @@ pub mod lexer {
     }
 
     pub struct TokenInfo {
-        token: Token,
-        position: u32,
+        pub token: Token,
+        pub position: u32,
     }
 
     struct Tokenizer<I> {
@@ -46,7 +46,6 @@ pub mod lexer {
                 }
                 None => return None,
             };
-
 
             // TODO make position "real"
             Some(TokenInfo { token, position: 0 })
@@ -94,7 +93,7 @@ pub mod lexer {
         return to_token(characters_to_include);
     }
 
-    pub fn tokenize(characters: impl Iterator<Item = char>) -> impl Iterator<Item = Token> {
+    pub fn tokenize(characters: impl Iterator<Item = char>) -> impl Iterator<Item = TokenInfo> {
         Tokenizer {
             characters: characters.peekable(),
         }
@@ -115,7 +114,7 @@ pub mod lexer {
                 Token::RightParen,
             ];
 
-            let actual_tokenization = tokenize(input.chars());
+            let actual_tokenization = tokenize(input.chars()).map(|ti| ti.token);
 
             assert_vectors_equal(&actual_tokenization.collect(), &expected_tokenization);
         }
@@ -130,7 +129,7 @@ pub mod lexer {
                 Token::RightParen,
             ];
 
-            let actual_tokenization = tokenize(input.chars());
+            let actual_tokenization = tokenize(input.chars()).map(|ti| ti.token);
 
             assert_vectors_equal(&actual_tokenization.collect(), &expected_tokenization);
         }
@@ -152,6 +151,88 @@ pub mod lexer {
                     );
                 }
             }
+        }
+    }
+}
+
+pub mod parser {
+    use crate::lexer::Token;
+    use crate::lexer::TokenInfo;
+    use std::iter::Peekable;
+
+    #[derive(Debug, Eq, PartialEq)]
+    pub enum Program {
+        Expressions(Vec<Expression>),
+    }
+
+    #[derive(Debug, Eq, PartialEq)]
+    pub enum Expression {
+        Print(Box<Expression>),
+        Integer(i64),
+    }
+
+    pub fn parse(tokens: Peekable<impl Iterator<Item = TokenInfo>>) -> Result<Program, String> {
+        let mut mutable_tokens = tokens;
+        let program = Program::Expressions(parse_expressions(&mut mutable_tokens)?);
+        Result::Ok(program)
+    }
+
+    fn parse_expressions(
+        tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>,
+    ) -> Result<Vec<Expression>, String> {
+        Result::Ok(vec![parse_print(tokens)?])
+    }
+
+    fn parse_print(
+        tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>,
+    ) -> Result<Expression, String> {
+        match tokens.next().unwrap().token {
+            Token::Identifier(identifier) => match identifier.as_str() {
+                "print" => {
+                    consume(Token::LeftParen, tokens)?;
+                    let token = Expression::Print(Box::new(parse_integer(tokens)));
+                    consume(Token::RightParen, tokens)?;
+                    Result::Ok(token)
+                }
+                _ => Result::Err("Badness!".to_string()),
+            },
+            _ => Result::Err("Badness!".to_string()),
+        }
+    }
+
+    fn consume(
+        token_to_consume: Token,
+        tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>,
+    ) -> Result<(), String> {
+        match tokens.next() {
+            Some(token_info) if token_info.token == token_to_consume => Result::Ok(()),
+            _ => Result::Err("Badness!".to_string()),
+        }
+    }
+
+    fn parse_integer(tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>) -> Expression {
+        match tokens.next().unwrap().token {
+            Token::Integer(value) => Expression::Integer(value),
+            _ => panic!(),
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        use crate::lexer;
+
+        #[test]
+        fn parse_print_1() {
+            let input = "print(1)".to_string();
+            let tokens = lexer::tokenize(input.chars());
+
+            let expected_ast =
+                Program::Expressions(vec![Expression::Print(Box::new(Expression::Integer(1)))]);
+
+            let ast = parse(tokens.peekable()).unwrap();
+
+            assert_eq!(ast, expected_ast)
         }
     }
 }
