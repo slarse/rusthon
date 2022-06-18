@@ -33,3 +33,15 @@ compiler and runtime.
 But what about the static type checking, you ask? This will work itself out
 later as most of the time we will be able to infer types. Literal integers
 for example are easily identifiable as just that.
+
+## Progress toward 0.1.0
+
+Rusthon 0.1.0 will be released once the entire compiler and runtime is fully
+functional.
+
+* Lexer - DONE
+* Parser - DONE
+* Type checker - N/A
+    - Omitted from 0.1.0 as there is only one value type
+* Code generation - TODO
+* VM/Runtime - TODO
