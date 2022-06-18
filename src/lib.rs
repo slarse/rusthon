@@ -171,7 +171,41 @@ pub mod parser {
         Integer(i64),
     }
 
-    pub fn parse(tokens: Peekable<impl Iterator<Item = TokenInfo>>) -> Result<Program, String> {
+    #[derive(Debug, Eq, PartialEq)]
+    pub struct ParseError {
+        position: u32,
+        message: String,
+        bad_token: Option<Token>,
+    }
+
+    impl ParseError {
+        pub fn error_string(&self) -> String {
+            format!(
+                "{}: found {:?} at position {}",
+                self.message, self.bad_token, self.position
+            )
+        }
+    }
+
+    fn parse_error<T>(message: String, bad_token: Option<Token>) -> Result<T, ParseError> {
+        Result::Err(ParseError {
+            message,
+            bad_token,
+            position: 0,
+        })
+    }
+
+    fn unexpected_eof<T>() -> Result<T, ParseError> {
+        Result::Err(ParseError {
+            message: "unexpected EOF".to_string(),
+            bad_token: None,
+            position: 0,
+        })
+    }
+
+    pub fn parse(
+        tokens: Peekable<impl Iterator<Item = TokenInfo>>,
+    ) -> Result<Program, ParseError> {
         let mut mutable_tokens = tokens;
         let program = program(parse_expressions(&mut mutable_tokens)?);
         Result::Ok(program)
@@ -179,41 +213,45 @@ pub mod parser {
 
     fn parse_expressions(
         tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>,
-    ) -> Result<Vec<Expression>, String> {
+    ) -> Result<Vec<Expression>, ParseError> {
         Result::Ok(vec![parse_print(tokens)?])
     }
 
     fn parse_print(
         tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>,
-    ) -> Result<Expression, String> {
-        match tokens.next().unwrap().token {
-            Token::Identifier(identifier) => match identifier.as_str() {
-                "print" => {
-                    consume(Token::LeftParen, tokens)?;
-                    let token = print(parse_integer(tokens));
-                    consume(Token::RightParen, tokens)?;
-                    Result::Ok(token)
-                }
-                _ => Result::Err("Badness!".to_string()),
+    ) -> Result<Expression, ParseError> {
+        match tokens.next() {
+            Some(token_info) => match token_info.token {
+                Token::Identifier(identifier) if identifier == "print" => {
+                        consume(Token::LeftParen, tokens)?;
+                        let token = print(parse_integer(tokens)?);
+                        consume(Token::RightParen, tokens)?;
+                        Result::Ok(token)
+                },
+                other_token => parse_error("expected print".to_string(), Some(other_token)),
             },
-            _ => Result::Err("Badness!".to_string()),
+            None => unexpected_eof(),
         }
     }
 
-    fn consume(
+    fn consume<'a>(
         token_to_consume: Token,
-        tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>,
-    ) -> Result<(), String> {
+        tokens: &mut Peekable<impl Iterator<Item = TokenInfo> + 'a>,
+    ) -> Result<(), ParseError> {
         match tokens.next() {
             Some(token_info) if token_info.token == token_to_consume => Result::Ok(()),
-            _ => Result::Err("Badness!".to_string()),
+            Some(token_info) => parse_error(format!("expected {:?}", token_to_consume), Some(token_info.token)),
+            None => unexpected_eof(),
         }
     }
 
-    fn parse_integer(tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>) -> Expression {
-        match tokens.next().unwrap().token {
-            Token::Integer(value) => int(value),
-            _ => panic!(),
+    fn parse_integer(tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>) -> Result<Expression, ParseError> {
+        match tokens.next() {
+            Some(token_info) => match token_info.token {
+                Token::Integer(value) => Result::Ok(int(value)),
+                other_token => parse_error("expected integer".to_string(), Some(other_token)),
+            }
+            None => unexpected_eof(),
         }
     }
 
@@ -235,7 +273,7 @@ pub mod parser {
         use crate::lexer;
 
         #[test]
-        fn parse_print_1() {
+        fn parse_print_1_is_ok() {
             let input = "print(1)".to_string();
             let tokens = lexer::tokenize(input.chars());
 
@@ -244,6 +282,26 @@ pub mod parser {
             let ast = parse(tokens.peekable()).unwrap();
 
             assert_eq!(ast, expected_ast)
+        }
+
+        #[test]
+        fn parse_print_1_without_closing_parenthesis_is_error() {
+            let input = "print(1".to_string();
+            let tokens = lexer::tokenize(input.chars());
+
+            let error = parse(tokens.peekable()).err().unwrap();
+
+            assert_eq!(error.error_string(), "unexpected EOF: found None at position 0")
+        }
+
+        #[test]
+        fn parse_misspelled_print_is_error() {
+            let input = "prit(1)".to_string();
+            let tokens = lexer::tokenize(input.chars());
+
+            let error = parse(tokens.peekable()).err().unwrap();
+
+            assert_eq!(error.error_string(), "expected print: found Some(Identifier(\"prit\")) at position 0")
         }
     }
 }
