@@ -20,9 +20,9 @@ Leading up to the 0.1.0 release of Rusthon, the syntax is tiny. This is
 currently all there is to it:
 
 ```
-program ::= statement
+program ::= expression
 
-statement ::= print ( INTEGER )
+expression ::= print ( INTEGER )
 
 INTEGER ::= [0-9]+
 ```
