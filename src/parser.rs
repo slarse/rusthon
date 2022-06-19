@@ -1,18 +1,69 @@
+//! Rusthon's parser.
+//!
+//! A parser takes a sequence of source code tokens and produces an _abstract
+//! syntax tree_ (AST). Rusthon does not have an explicit _concrete syntax tree_
+//! (CST), but instead parses a token sequence directly to an AST.
+
 use crate::lexer::Token;
 use crate::lexer::TokenInfo;
 use std::iter::Peekable;
 
+/// The top-level syntactical construct.
+///
+/// Program ::= Expression
 #[derive(Debug, Eq, PartialEq)]
 pub enum Program {
     Expressions(Vec<Expression>),
 }
 
+/// An expression.
+///
+/// Expression ::= print ( <INTEGER> )
+///             | [0-9]+
 #[derive(Debug, Eq, PartialEq)]
 pub enum Expression {
     Print(Box<Expression>),
     Integer(i64),
 }
 
+/// Parse a sequence of `tokens` into an AST rooted in a [`Program`] node.
+///
+/// # Examples
+/// ```
+/// use rusthon::lexer;
+/// use rusthon::parser::*;
+///
+/// let input = "print(1)".to_string();
+/// let tokens = lexer::tokenize(input.chars());
+///
+/// let expected_ast = program(vec![print(int(1))]);
+///
+/// let ast = parse(tokens.peekable()).unwrap();
+///
+/// assert_eq!(ast, expected_ast)
+/// ```
+pub fn parse(tokens: Peekable<impl Iterator<Item = TokenInfo>>) -> Result<Program, ParseError> {
+    let mut mutable_tokens = tokens;
+    let program = program(parse_expressions(&mut mutable_tokens)?);
+    Result::Ok(program)
+}
+
+/// Convenience function to construct a `Program::Expressins`.
+pub fn program(expressions: Vec<Expression>) -> Program {
+    Program::Expressions(expressions)
+}
+
+/// Convenience function to construct an `Expression::Print`.
+pub fn print(expression: Expression) -> Expression {
+    Expression::Print(Box::new(expression))
+}
+
+/// Convenience function to construct an `Expression::Integer`.
+pub fn int(value: i64) -> Expression {
+    Expression::Integer(value)
+}
+
+/// A parsing error due to an unexpected token or EOF.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ParseError {
     position: u32,
@@ -43,12 +94,6 @@ fn unexpected_eof<T>() -> Result<T, ParseError> {
         bad_token: None,
         position: 0,
     })
-}
-
-pub fn parse(tokens: Peekable<impl Iterator<Item = TokenInfo>>) -> Result<Program, ParseError> {
-    let mut mutable_tokens = tokens;
-    let program = program(parse_expressions(&mut mutable_tokens)?);
-    Result::Ok(program)
 }
 
 fn parse_expressions(
@@ -98,18 +143,6 @@ fn parse_integer(
         },
         None => unexpected_eof(),
     }
-}
-
-fn int(value: i64) -> Expression {
-    Expression::Integer(value)
-}
-
-fn print(expression: Expression) -> Expression {
-    Expression::Print(Box::new(expression))
-}
-
-fn program(expressions: Vec<Expression>) -> Program {
-    Program::Expressions(expressions)
 }
 
 #[cfg(test)]
