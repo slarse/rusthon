@@ -1,5 +1,11 @@
+//! Rusthon's lexer.
+//!
+//! A lexer takes raw source code as input and produces an ordered sequence of tokens that are
+//! easier to reason.
+
 use std::iter::Peekable;
 
+/// A token is the smallest significant unit of the Rusthon syntax.
 #[derive(Debug, Eq, PartialEq)]
 pub enum Token {
     LeftParen,
@@ -9,9 +15,42 @@ pub enum Token {
     Error(String),
 }
 
+/// A wrapper struct for a token that also contains a source code position. The
+/// `position` member denotes the starting position of the token.
 pub struct TokenInfo {
     pub token: Token,
     pub position: u32,
+}
+
+/// Tokenize the provided `characters` into an iterator of [`TokenInfo`].
+///
+/// # Examples
+///
+/// ```
+/// use rusthon::lexer;
+/// use rusthon::lexer::Token;
+///
+/// let input = "print(1)".to_string();
+/// let expected_tokenization = vec![
+///     Token::Identifier("print".to_string()),
+///     Token::LeftParen,
+///     Token::Integer(1),
+///     Token::RightParen,
+/// ];
+///
+/// // The position in `TokenInfo` currently isn't usable, so we ignore it
+/// let actual_tokenization: Vec<Token> = lexer::tokenize(input.chars()).map(|ti| ti.token).collect();
+///
+/// assert_eq!(actual_tokenization.len(), expected_tokenization.len());
+/// actual_tokenization
+///     .iter()
+///     .zip(expected_tokenization.iter())
+///     .for_each(|(actual_token, expected_token)| assert_eq!(actual_token, expected_token));
+/// ```
+pub fn tokenize(characters: impl Iterator<Item = char>) -> impl Iterator<Item = TokenInfo> {
+    Tokenizer {
+        characters: characters.peekable(),
+    }
 }
 
 struct Tokenizer<I> {
@@ -90,12 +129,6 @@ fn lex_token(
     }
 
     return to_token(characters_to_include);
-}
-
-pub fn tokenize(characters: impl Iterator<Item = char>) -> impl Iterator<Item = TokenInfo> {
-    Tokenizer {
-        characters: characters.peekable(),
-    }
 }
 
 #[cfg(test)]
