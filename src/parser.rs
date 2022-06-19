@@ -45,9 +45,7 @@ fn unexpected_eof<T>() -> Result<T, ParseError> {
     })
 }
 
-pub fn parse(
-    tokens: Peekable<impl Iterator<Item = TokenInfo>>,
-) -> Result<Program, ParseError> {
+pub fn parse(tokens: Peekable<impl Iterator<Item = TokenInfo>>) -> Result<Program, ParseError> {
     let mut mutable_tokens = tokens;
     let program = program(parse_expressions(&mut mutable_tokens)?);
     Result::Ok(program)
@@ -65,11 +63,11 @@ fn parse_print(
     match tokens.next() {
         Some(token_info) => match token_info.token {
             Token::Identifier(identifier) if identifier == "print" => {
-                    consume(Token::LeftParen, tokens)?;
-                    let token = print(parse_integer(tokens)?);
-                    consume(Token::RightParen, tokens)?;
-                    Result::Ok(token)
-            },
+                consume(Token::LeftParen, tokens)?;
+                let token = print(parse_integer(tokens)?);
+                consume(Token::RightParen, tokens)?;
+                Result::Ok(token)
+            }
             other_token => parse_error("expected print".to_string(), Some(other_token)),
         },
         None => unexpected_eof(),
@@ -82,17 +80,22 @@ fn consume<'a>(
 ) -> Result<(), ParseError> {
     match tokens.next() {
         Some(token_info) if token_info.token == token_to_consume => Result::Ok(()),
-        Some(token_info) => parse_error(format!("expected {:?}", token_to_consume), Some(token_info.token)),
+        Some(token_info) => parse_error(
+            format!("expected {:?}", token_to_consume),
+            Some(token_info.token),
+        ),
         None => unexpected_eof(),
     }
 }
 
-fn parse_integer(tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>) -> Result<Expression, ParseError> {
+fn parse_integer(
+    tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>,
+) -> Result<Expression, ParseError> {
     match tokens.next() {
         Some(token_info) => match token_info.token {
             Token::Integer(value) => Result::Ok(int(value)),
             other_token => parse_error("expected integer".to_string(), Some(other_token)),
-        }
+        },
         None => unexpected_eof(),
     }
 }
@@ -133,7 +136,10 @@ mod tests {
 
         let error = parse(tokens.peekable()).err().unwrap();
 
-        assert_eq!(error.error_string(), "unexpected EOF: found None at position 0")
+        assert_eq!(
+            error.error_string(),
+            "unexpected EOF: found None at position 0"
+        )
     }
 
     #[test]
@@ -143,6 +149,9 @@ mod tests {
 
         let error = parse(tokens.peekable()).err().unwrap();
 
-        assert_eq!(error.error_string(), "expected print: found Some(Identifier(\"prit\")) at position 0")
+        assert_eq!(
+            error.error_string(),
+            "expected print: found Some(Identifier(\"prit\")) at position 0"
+        )
     }
 }
