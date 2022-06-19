@@ -1,4 +1,4 @@
-//! Rusthon's lexer.
+//! Rusthon's lexer: takes source code and produces a sequence of tokens.
 //!
 //! A lexer takes raw source code as input and produces an ordered sequence of tokens that are
 //! easier to reason.

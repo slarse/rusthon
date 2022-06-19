@@ -1,4 +1,4 @@
-//! Rusthon's parser.
+//! Rusthon's parser: takes tokens from the lexer and produces an AST.
 //!
 //! A parser takes a sequence of source code tokens and produces an _abstract
 //! syntax tree_ (AST). Rusthon does not have an explicit _concrete syntax tree_
