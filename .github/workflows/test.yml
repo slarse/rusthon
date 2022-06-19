@@ -35,5 +35,8 @@ jobs:
           profile: minimal
           toolchain: stable
 
+      - name: Check formatting
+        run: cargo fmt --check
+
       - name: Run tests
         run: cargo test
