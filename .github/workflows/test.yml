@@ -1,0 +1,41 @@
+name: test
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Test
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Cache cargo
+        # Adapted from the diesel project, see https://github.com/diesel-rs/diesel/blob/df7ca0ae54a20e4c0d59c13e00d1c07667d61723/.github/workflows/ci.yml#L33-L39
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+
+      - name: Run tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
