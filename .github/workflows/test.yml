@@ -30,12 +30,12 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('**/Cargo.toml') }}
 
       - name: Install rust toolchain
-        uses: actions-rs/toolchain@v1
+        uses: actions-rs/toolchain@b2417cde72dcf67f306c0ae8e0828a81bf0b189f
         with:
           profile: minimal
           toolchain: stable
 
       - name: Run tests
-        uses: actions-rs/cargo@v1
+        uses: actions-rs/cargo@ae10961054e4aa8b4aa7dffede299aaf087aa33b
         with:
           command: test
