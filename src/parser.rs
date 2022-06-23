@@ -4,8 +4,8 @@
 //! syntax tree_ (AST). Rusthon does not have an explicit _concrete syntax tree_
 //! (CST), but instead parses a token sequence directly to an AST.
 
+use crate::lexer::TokenKind;
 use crate::lexer::Token;
-use crate::lexer::TokenInfo;
 use std::iter::Peekable;
 
 /// The top-level syntactical construct.
@@ -42,7 +42,7 @@ pub enum Expression {
 ///
 /// assert_eq!(ast, expected_ast)
 /// ```
-pub fn parse(tokens: Peekable<impl Iterator<Item = TokenInfo>>) -> Result<Program, ParseError> {
+pub fn parse(tokens: Peekable<impl Iterator<Item = Token>>) -> Result<Program, ParseError> {
     let mut mutable_tokens = tokens;
     let program = program(parse_expressions(&mut mutable_tokens)?);
     Result::Ok(program)
@@ -68,7 +68,7 @@ pub fn int(value: i64) -> Expression {
 pub struct ParseError {
     position: u32,
     message: String,
-    bad_token: Option<Token>,
+    bad_token: Option<TokenKind>,
 }
 
 impl ParseError {
@@ -80,7 +80,7 @@ impl ParseError {
     }
 }
 
-fn parse_error<T>(message: String, bad_token: Option<Token>) -> Result<T, ParseError> {
+fn parse_error<T>(message: String, bad_token: Option<TokenKind>) -> Result<T, ParseError> {
     Result::Err(ParseError {
         message,
         bad_token,
@@ -97,20 +97,20 @@ fn unexpected_eof<T>() -> Result<T, ParseError> {
 }
 
 fn parse_expressions(
-    tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>,
+    tokens: &mut Peekable<impl Iterator<Item = Token>>,
 ) -> Result<Vec<Expression>, ParseError> {
     Result::Ok(vec![parse_print(tokens)?])
 }
 
 fn parse_print(
-    tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>,
+    tokens: &mut Peekable<impl Iterator<Item = Token>>,
 ) -> Result<Expression, ParseError> {
     match tokens.next() {
         Some(token_info) => match token_info.token {
-            Token::Identifier(identifier) if identifier == "print" => {
-                consume(Token::LeftParen, tokens)?;
+            TokenKind::Identifier(identifier) if identifier == "print" => {
+                consume(TokenKind::LeftParen, tokens)?;
                 let token = print(parse_integer(tokens)?);
-                consume(Token::RightParen, tokens)?;
+                consume(TokenKind::RightParen, tokens)?;
                 Result::Ok(token)
             }
             other_token => parse_error("expected print".to_string(), Some(other_token)),
@@ -120,8 +120,8 @@ fn parse_print(
 }
 
 fn consume<'a>(
-    token_to_consume: Token,
-    tokens: &mut Peekable<impl Iterator<Item = TokenInfo> + 'a>,
+    token_to_consume: TokenKind,
+    tokens: &mut Peekable<impl Iterator<Item = Token> + 'a>,
 ) -> Result<(), ParseError> {
     match tokens.next() {
         Some(token_info) if token_info.token == token_to_consume => Result::Ok(()),
@@ -134,11 +134,11 @@ fn consume<'a>(
 }
 
 fn parse_integer(
-    tokens: &mut Peekable<impl Iterator<Item = TokenInfo>>,
+    tokens: &mut Peekable<impl Iterator<Item = Token>>,
 ) -> Result<Expression, ParseError> {
     match tokens.next() {
         Some(token_info) => match token_info.token {
-            Token::Integer(value) => Result::Ok(int(value)),
+            TokenKind::Integer(value) => Result::Ok(int(value)),
             other_token => parse_error("expected integer".to_string(), Some(other_token)),
         },
         None => unexpected_eof(),

@@ -7,7 +7,7 @@ use std::iter::Peekable;
 
 /// A token is the smallest significant unit of the Rusthon syntax.
 #[derive(Debug, Eq, PartialEq)]
-pub enum Token {
+pub enum TokenKind {
     LeftParen,
     RightParen,
     Integer(i64),
@@ -17,29 +17,29 @@ pub enum Token {
 
 /// A wrapper struct for a token that also contains a source code position. The
 /// `position` member denotes the starting position of the token.
-pub struct TokenInfo {
-    pub token: Token,
+pub struct Token {
+    pub token: TokenKind,
     pub position: u32,
 }
 
-/// Tokenize the provided `characters` into an iterator of [`TokenInfo`].
+/// Tokenize the provided `characters` into an iterator of [`Token`].
 ///
 /// # Examples
 ///
 /// ```
 /// use rusthon::lexer;
-/// use rusthon::lexer::Token;
+/// use rusthon::lexer::TokenKind;
 ///
 /// let input = "print(1)".to_string();
 /// let expected_tokenization = vec![
-///     Token::Identifier("print".to_string()),
-///     Token::LeftParen,
-///     Token::Integer(1),
-///     Token::RightParen,
+///     TokenKind::Identifier("print".to_string()),
+///     TokenKind::LeftParen,
+///     TokenKind::Integer(1),
+///     TokenKind::RightParen,
 /// ];
 ///
-/// // The position in `TokenInfo` currently isn't usable, so we ignore it
-/// let actual_tokenization: Vec<Token> = lexer::tokenize(input.chars()).map(|ti| ti.token).collect();
+/// // The position in `Token` currently isn't usable, so we ignore it
+/// let actual_tokenization: Vec<TokenKind> = lexer::tokenize(input.chars()).map(|ti| ti.token).collect();
 ///
 /// assert_eq!(actual_tokenization.len(), expected_tokenization.len());
 /// actual_tokenization
@@ -47,7 +47,7 @@ pub struct TokenInfo {
 ///     .zip(expected_tokenization.iter())
 ///     .for_each(|(actual_token, expected_token)| assert_eq!(actual_token, expected_token));
 /// ```
-pub fn tokenize(characters: impl Iterator<Item = char>) -> impl Iterator<Item = TokenInfo> {
+pub fn tokenize(characters: impl Iterator<Item = char>) -> impl Iterator<Item = Token> {
     Tokenizer {
         characters: characters.peekable(),
     }
@@ -58,7 +58,7 @@ struct Tokenizer<I> {
 }
 
 impl<I: Iterator<Item = char>> Iterator for Tokenizer<Peekable<I>> {
-    type Item = TokenInfo;
+    type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
         let token = match self.characters.peek() {
@@ -72,34 +72,34 @@ impl<I: Iterator<Item = char>> Iterator for Tokenizer<Peekable<I>> {
             }
             Some('(') => {
                 self.characters.next();
-                Token::LeftParen
+                TokenKind::LeftParen
             }
             Some(')') => {
                 self.characters.next();
-                Token::RightParen
+                TokenKind::RightParen
             }
             Some(_) => {
                 let error = self.characters.next().unwrap();
-                Token::Error(error.to_string())
+                TokenKind::Error(error.to_string())
             }
             None => return None,
         };
 
         // TODO make position "real"
-        Some(TokenInfo { token, position: 0 })
+        Some(Token { token, position: 0 })
     }
 }
 
-fn lex_word(characters: &mut Peekable<impl Iterator<Item = char>>) -> Token {
-    let to_word_token = |text: String| Token::Identifier(text);
+fn lex_word(characters: &mut Peekable<impl Iterator<Item = char>>) -> TokenKind {
+    let to_word_token = |text: String| TokenKind::Identifier(text);
 
     let is_letter = |character: &char| ('A'..'z').contains(&character);
 
     return lex_token(&is_letter, &to_word_token, characters);
 }
 
-fn lex_digit(characters: &mut Peekable<impl Iterator<Item = char>>) -> Token {
-    let to_integer_token = |text: String| Token::Integer(text.parse().unwrap());
+fn lex_digit(characters: &mut Peekable<impl Iterator<Item = char>>) -> TokenKind {
+    let to_integer_token = |text: String| TokenKind::Integer(text.parse().unwrap());
 
     let is_digit = |character: &char| ('0'..='9').contains(&character);
 
@@ -108,9 +108,9 @@ fn lex_digit(characters: &mut Peekable<impl Iterator<Item = char>>) -> Token {
 
 fn lex_token(
     should_include: &dyn Fn(&char) -> bool,
-    to_token: &dyn Fn(String) -> Token,
+    to_token: &dyn Fn(String) -> TokenKind,
     characters: &mut Peekable<impl Iterator<Item = char>>,
-) -> Token {
+) -> TokenKind {
     let mut characters_to_include = String::new();
 
     loop {
@@ -140,10 +140,10 @@ mod tests {
     fn lex_print_1() {
         let input = "print(1)".to_string();
         let expected_tokenization = vec![
-            Token::Identifier("print".to_string()),
-            Token::LeftParen,
-            Token::Integer(1),
-            Token::RightParen,
+            TokenKind::Identifier("print".to_string()),
+            TokenKind::LeftParen,
+            TokenKind::Integer(1),
+            TokenKind::RightParen,
         ];
 
         let actual_tokenization = tokenize(input.chars()).map(|ti| ti.token);
@@ -155,10 +155,10 @@ mod tests {
     fn lex_bad_character() {
         let input = "print(;)";
         let expected_tokenization = vec![
-            Token::Identifier("print".to_string()),
-            Token::LeftParen,
-            Token::Error(";".to_string()),
-            Token::RightParen,
+            TokenKind::Identifier("print".to_string()),
+            TokenKind::LeftParen,
+            TokenKind::Error(";".to_string()),
+            TokenKind::RightParen,
         ];
 
         let actual_tokenization = tokenize(input.chars()).map(|ti| ti.token);
