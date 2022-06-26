@@ -4,8 +4,8 @@
 //! syntax tree_ (AST). Rusthon does not have an explicit _concrete syntax tree_
 //! (CST), but instead parses a token sequence directly to an AST.
 
-use crate::lexer::TokenKind;
 use crate::lexer::Token;
+use crate::lexer::TokenKind;
 use std::iter::Peekable;
 
 /// The top-level syntactical construct.
