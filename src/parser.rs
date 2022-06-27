@@ -22,7 +22,10 @@ pub enum Program {
 ///             | [0-9]+
 #[derive(Debug, Eq, PartialEq)]
 pub enum Expression {
-    Print(Box<Expression>),
+    Invocation {
+        target: String,
+        argument: Box<Expression>,
+    },
     Integer(i64),
 }
 
@@ -55,7 +58,10 @@ pub fn program(expressions: Vec<Expression>) -> Program {
 
 /// Convenience function to construct an `Expression::Print`.
 pub fn print(expression: Expression) -> Expression {
-    Expression::Print(Box::new(expression))
+    Expression::Invocation {
+        target: "print".to_string(),
+        argument: Box::new(expression),
+    }
 }
 
 /// Convenience function to construct an `Expression::Integer`.
