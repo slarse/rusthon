@@ -228,6 +228,9 @@ mod tests {
 
         let error = parse(tokens.peekable()).err().unwrap();
 
-        assert_eq!(error.error_string(), "expected integer: found RightParen at position 6")
+        assert_eq!(
+            error.error_string(),
+            "expected integer: found RightParen at position 6"
+        )
     }
 }
