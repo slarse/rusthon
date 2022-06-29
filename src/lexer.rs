@@ -17,8 +17,9 @@ pub enum TokenKind {
 
 /// A wrapper struct for a token that also contains a source code position. The
 /// `position` member denotes the starting position of the token.
+#[derive(Debug, Eq, PartialEq)]
 pub struct Token {
-    pub token: TokenKind,
+    pub kind: TokenKind,
     pub position: u32,
 }
 
@@ -39,7 +40,7 @@ pub struct Token {
 /// ];
 ///
 /// // The position in `Token` currently isn't usable, so we ignore it
-/// let actual_tokenization: Vec<TokenKind> = lexer::tokenize(input.chars()).map(|ti| ti.token).collect();
+/// let actual_tokenization: Vec<TokenKind> = lexer::tokenize(input.chars()).map(|ti| ti.kind).collect();
 ///
 /// assert_eq!(actual_tokenization.len(), expected_tokenization.len());
 /// actual_tokenization
@@ -61,14 +62,14 @@ impl<I: Iterator<Item = char>> Iterator for Tokenizer<Peekable<I>> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let token = match self.characters.peek() {
+        let kind = match self.characters.peek() {
             Some('A'..='z') => {
-                let token = lex_word(&mut self.characters);
-                token
+                let kind = lex_word(&mut self.characters);
+                kind
             }
             Some('0'..='9') => {
-                let token = lex_digit(&mut self.characters);
-                token
+                let kind = lex_digit(&mut self.characters);
+                kind
             }
             Some('(') => {
                 self.characters.next();
@@ -86,7 +87,7 @@ impl<I: Iterator<Item = char>> Iterator for Tokenizer<Peekable<I>> {
         };
 
         // TODO make position "real"
-        Some(Token { token, position: 0 })
+        Some(Token { kind, position: 0 })
     }
 }
 
@@ -146,7 +147,7 @@ mod tests {
             TokenKind::RightParen,
         ];
 
-        let actual_tokenization = tokenize(input.chars()).map(|ti| ti.token);
+        let actual_tokenization = tokenize(input.chars()).map(|ti| ti.kind);
 
         assert_vectors_equal(&actual_tokenization.collect(), &expected_tokenization);
     }
@@ -161,7 +162,7 @@ mod tests {
             TokenKind::RightParen,
         ];
 
-        let actual_tokenization = tokenize(input.chars()).map(|ti| ti.token);
+        let actual_tokenization = tokenize(input.chars()).map(|ti| ti.kind);
 
         assert_vectors_equal(&actual_tokenization.collect(), &expected_tokenization);
     }

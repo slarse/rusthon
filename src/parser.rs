@@ -12,16 +12,31 @@ use std::iter::Peekable;
 ///
 /// Program ::= Expression
 #[derive(Debug, Eq, PartialEq)]
-pub enum Program {
-    Expressions(Vec<Expression>),
+pub struct Program {
+    expressions: Vec<Expression>,
 }
+
+#[derive(Debug)]
+pub struct Expression {
+    id: u32,
+    token: Option<Token>,
+    kind: ExpressionKind,
+}
+
+impl PartialEq for Expression {
+    fn eq(&self, other: &Self) -> bool {
+        self.kind == other.kind
+    }
+}
+
+impl Eq for Expression {}
 
 /// An expression.
 ///
 /// Expression ::= print ( <INTEGER> )
 ///             | [0-9]+
 #[derive(Debug, Eq, PartialEq)]
-pub enum Expression {
+pub enum ExpressionKind {
     Invocation {
         target: String,
         argument: Box<Expression>,
@@ -39,7 +54,7 @@ pub enum Expression {
 /// let input = "print(1)".to_string();
 /// let tokens = lexer::tokenize(input.chars());
 ///
-/// let expected_ast = program(vec![print(int(1))]);
+/// let expected_ast = program(vec![print(int(1, None), None)]);
 ///
 /// let ast = parse(tokens.peekable()).unwrap();
 ///
@@ -51,22 +66,27 @@ pub fn parse(tokens: Peekable<impl Iterator<Item = Token>>) -> Result<Program, P
     Result::Ok(program)
 }
 
-/// Convenience function to construct a `Program::Expressins`.
+/// Convenience function to construct a [`Program`].
 pub fn program(expressions: Vec<Expression>) -> Program {
-    Program::Expressions(expressions)
+    Program { expressions }
 }
 
 /// Convenience function to construct an `Expression::Print`.
-pub fn print(expression: Expression) -> Expression {
-    Expression::Invocation {
+pub fn print(expression: Expression, token: Option<Token>) -> Expression {
+    let kind = ExpressionKind::Invocation {
         target: "print".to_string(),
         argument: Box::new(expression),
-    }
+    };
+    Expression { id: 0, token, kind }
 }
 
 /// Convenience function to construct an `Expression::Integer`.
-pub fn int(value: i64) -> Expression {
-    Expression::Integer(value)
+pub fn int(value: i64, token: Option<Token>) -> Expression {
+    Expression {
+        id: 0,
+        token,
+        kind: ExpressionKind::Integer(value),
+    }
 }
 
 /// A parsing error due to an unexpected token or EOF.
@@ -112,12 +132,12 @@ fn parse_print(
     tokens: &mut Peekable<impl Iterator<Item = Token>>,
 ) -> Result<Expression, ParseError> {
     match tokens.next() {
-        Some(token_info) => match token_info.token {
+        Some(token) => match token.kind {
             TokenKind::Identifier(identifier) if identifier == "print" => {
                 consume(TokenKind::LeftParen, tokens)?;
-                let token = print(parse_integer(tokens)?);
+                let expression = print(parse_integer(tokens)?, None);
                 consume(TokenKind::RightParen, tokens)?;
-                Result::Ok(token)
+                Result::Ok(expression)
             }
             other_token => parse_error("expected print".to_string(), Some(other_token)),
         },
@@ -130,10 +150,10 @@ fn consume<'a>(
     tokens: &mut Peekable<impl Iterator<Item = Token> + 'a>,
 ) -> Result<(), ParseError> {
     match tokens.next() {
-        Some(token_info) if token_info.token == token_to_consume => Result::Ok(()),
+        Some(token_info) if token_info.kind == token_to_consume => Result::Ok(()),
         Some(token_info) => parse_error(
             format!("expected {:?}", token_to_consume),
-            Some(token_info.token),
+            Some(token_info.kind),
         ),
         None => unexpected_eof(),
     }
@@ -143,8 +163,8 @@ fn parse_integer(
     tokens: &mut Peekable<impl Iterator<Item = Token>>,
 ) -> Result<Expression, ParseError> {
     match tokens.next() {
-        Some(token_info) => match token_info.token {
-            TokenKind::Integer(value) => Result::Ok(int(value)),
+        Some(token) => match token.kind {
+            TokenKind::Integer(value) => Result::Ok(int(value, Some(token))),
             other_token => parse_error("expected integer".to_string(), Some(other_token)),
         },
         None => unexpected_eof(),
@@ -161,7 +181,7 @@ mod tests {
         let input = "print(1)".to_string();
         let tokens = lexer::tokenize(input.chars());
 
-        let expected_ast = program(vec![print(int(1))]);
+        let expected_ast = program(vec![print(int(1, None), None)]);
 
         let ast = parse(tokens.peekable()).unwrap();
 
