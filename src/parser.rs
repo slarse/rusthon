@@ -73,25 +73,36 @@ pub fn program(expressions: Vec<Expression>) -> Program {
 
 /// Convenience function to construct an `Expression::Print`.
 pub fn print(expression: Expression) -> Expression {
-    print_(expression, 0, vec![])
+    print_(expression, vec![])
 }
 
-fn print_(expression: Expression, id: u32, tokens: Vec<Token>) -> Expression {
+fn print_(expression: Expression, tokens: Vec<Token>) -> Expression {
     let kind = ExpressionKind::Invocation {
         target: "print".to_string(),
         argument: Box::new(expression),
     };
-    Expression { id, tokens, kind }
+    Expression {
+        id: get_id(&tokens),
+        tokens,
+        kind,
+    }
+}
+
+fn get_id(tokens: &Vec<Token>) -> u32 {
+    match tokens.get(0) {
+        Some(token) => token.position,
+        None => 0,
+    }
 }
 
 /// Convenience function to construct an `Expression::Integer`.
 pub fn int(value: i64) -> Expression {
-    int_(value, 0, vec![])
+    int_(value, vec![])
 }
 
-fn int_(value: i64, id: u32, tokens: Vec<Token>) -> Expression {
+fn int_(value: i64, tokens: Vec<Token>) -> Expression {
     Expression {
-        id,
+        id: get_id(&tokens),
         tokens,
         kind: ExpressionKind::Integer(value),
     }
@@ -145,7 +156,7 @@ fn parse_print(
         Some(token) => match token.kind {
             TokenKind::Identifier(identifier) if identifier == "print" => {
                 consume(TokenKind::LeftParen, tokens)?;
-                let expression = print_(parse_integer(tokens)?, 0, vec![]);
+                let expression = print_(parse_integer(tokens)?, vec![]);
                 consume(TokenKind::RightParen, tokens)?;
                 Result::Ok(expression)
             }
@@ -171,7 +182,7 @@ fn parse_integer(
 ) -> Result<Expression, ParseError> {
     match tokens.next() {
         Some(token) => match token.kind {
-            TokenKind::Integer(value) => Result::Ok(int_(value, 0, vec![token])),
+            TokenKind::Integer(value) => Result::Ok(int_(value, vec![token])),
             _ => parse_error("expected integer".to_string(), Some(token)),
         },
         None => unexpected_eof(),
@@ -192,7 +203,26 @@ mod tests {
 
         let ast = parse(tokens.peekable()).unwrap();
 
-        assert_eq!(ast, expected_ast)
+        assert_eq!(ast, expected_ast);
+    }
+
+    #[test]
+    fn parse_print_1_expressions_have_unique_ids() {
+        let input = "print(1)".to_string();
+        let tokens = lexer::tokenize(input.chars());
+
+        let ast = parse(tokens.peekable()).unwrap();
+
+        let print_expression = ast.expressions.get(0).unwrap();
+        match &print_expression.kind {
+            ExpressionKind::Invocation {
+                target: _,
+                argument: integer_expression,
+            } => {
+                assert_ne!(print_expression.id, integer_expression.id)
+            }
+            _ => panic!("Unexpected AST form"),
+        }
     }
 
     #[test]
