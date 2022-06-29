@@ -13,6 +13,7 @@ pub enum TokenKind {
     Integer(i64),
     Identifier(String),
     Error(String),
+    EOF,
 }
 
 /// A wrapper struct for a token that also contains a source code position. The

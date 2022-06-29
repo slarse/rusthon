@@ -100,33 +100,35 @@ fn int_(value: i64, id: u32, tokens: Vec<Token>) -> Expression {
 /// A parsing error due to an unexpected token or EOF.
 #[derive(Debug, Eq, PartialEq)]
 pub struct ParseError {
-    position: u32,
     message: String,
-    bad_token: Option<TokenKind>,
+    bad_token: Option<Token>,
 }
 
 impl ParseError {
     pub fn error_string(&self) -> String {
+        let eof = TokenKind::EOF;
+
+        let (position, token_kind) = if let Some(token) = self.bad_token.as_ref() {
+            (token.position, &token.kind)
+        } else {
+            (0, &eof)
+        };
+
         format!(
             "{}: found {:?} at position {}",
-            self.message, self.bad_token, self.position
+            self.message, token_kind, position
         )
     }
 }
 
-fn parse_error<T>(message: String, bad_token: Option<TokenKind>) -> Result<T, ParseError> {
-    Result::Err(ParseError {
-        message,
-        bad_token,
-        position: 0,
-    })
+fn parse_error<T>(message: String, bad_token: Option<Token>) -> Result<T, ParseError> {
+    Result::Err(ParseError { message, bad_token })
 }
 
 fn unexpected_eof<T>() -> Result<T, ParseError> {
     Result::Err(ParseError {
         message: "unexpected EOF".to_string(),
         bad_token: None,
-        position: 0,
     })
 }
 
@@ -147,7 +149,7 @@ fn parse_print(
                 consume(TokenKind::RightParen, tokens)?;
                 Result::Ok(expression)
             }
-            other_token => parse_error("expected print".to_string(), Some(other_token)),
+            _ => parse_error("expected print".to_string(), Some(token)),
         },
         None => unexpected_eof(),
     }
@@ -158,11 +160,8 @@ fn consume<'a>(
     tokens: &mut Peekable<impl Iterator<Item = Token> + 'a>,
 ) -> Result<(), ParseError> {
     match tokens.next() {
-        Some(token_info) if token_info.kind == token_to_consume => Result::Ok(()),
-        Some(token_info) => parse_error(
-            format!("expected {:?}", token_to_consume),
-            Some(token_info.kind),
-        ),
+        Some(token) if token.kind == token_to_consume => Result::Ok(()),
+        Some(token) => parse_error(format!("expected {:?}", token_to_consume), Some(token)),
         None => unexpected_eof(),
     }
 }
@@ -173,7 +172,7 @@ fn parse_integer(
     match tokens.next() {
         Some(token) => match token.kind {
             TokenKind::Integer(value) => Result::Ok(int_(value, 0, vec![token])),
-            other_token => parse_error("expected integer".to_string(), Some(other_token)),
+            _ => parse_error("expected integer".to_string(), Some(token)),
         },
         None => unexpected_eof(),
     }
@@ -205,7 +204,7 @@ mod tests {
 
         assert_eq!(
             error.error_string(),
-            "unexpected EOF: found None at position 0"
+            "unexpected EOF: found EOF at position 0"
         )
     }
 
@@ -218,7 +217,7 @@ mod tests {
 
         assert_eq!(
             error.error_string(),
-            "expected print: found Some(Identifier(\"prit\")) at position 0"
+            "expected print: found Identifier(\"prit\") at position 0"
         )
     }
 }
