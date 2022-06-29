@@ -54,7 +54,7 @@ pub enum ExpressionKind {
 /// let input = "print(1)".to_string();
 /// let tokens = lexer::tokenize(input.chars());
 ///
-/// let expected_ast = program(vec![print(int(1, vec![]), vec![])]);
+/// let expected_ast = program(vec![print(int(1))]);
 ///
 /// let ast = parse(tokens.peekable()).unwrap();
 ///
@@ -72,22 +72,26 @@ pub fn program(expressions: Vec<Expression>) -> Program {
 }
 
 /// Convenience function to construct an `Expression::Print`.
-pub fn print(expression: Expression, tokens: Vec<Token>) -> Expression {
+pub fn print(expression: Expression) -> Expression {
+    print_(expression, 0, vec![])
+}
+
+fn print_(expression: Expression, id: u32, tokens: Vec<Token>) -> Expression {
     let kind = ExpressionKind::Invocation {
         target: "print".to_string(),
         argument: Box::new(expression),
     };
-    Expression {
-        id: 0,
-        tokens,
-        kind,
-    }
+    Expression { id, tokens, kind }
 }
 
 /// Convenience function to construct an `Expression::Integer`.
-pub fn int(value: i64, tokens: Vec<Token>) -> Expression {
+pub fn int(value: i64) -> Expression {
+    int_(value, 0, vec![])
+}
+
+fn int_(value: i64, id: u32, tokens: Vec<Token>) -> Expression {
     Expression {
-        id: 0,
+        id,
         tokens,
         kind: ExpressionKind::Integer(value),
     }
@@ -139,7 +143,7 @@ fn parse_print(
         Some(token) => match token.kind {
             TokenKind::Identifier(identifier) if identifier == "print" => {
                 consume(TokenKind::LeftParen, tokens)?;
-                let expression = print(parse_integer(tokens)?, vec![]);
+                let expression = print_(parse_integer(tokens)?, 0, vec![]);
                 consume(TokenKind::RightParen, tokens)?;
                 Result::Ok(expression)
             }
@@ -168,7 +172,7 @@ fn parse_integer(
 ) -> Result<Expression, ParseError> {
     match tokens.next() {
         Some(token) => match token.kind {
-            TokenKind::Integer(value) => Result::Ok(int(value, vec![token])),
+            TokenKind::Integer(value) => Result::Ok(int_(value, 0, vec![token])),
             other_token => parse_error("expected integer".to_string(), Some(other_token)),
         },
         None => unexpected_eof(),
@@ -185,7 +189,7 @@ mod tests {
         let input = "print(1)".to_string();
         let tokens = lexer::tokenize(input.chars());
 
-        let expected_ast = program(vec![print(int(1, vec![]), vec![])]);
+        let expected_ast = program(vec![print(int(1))]);
 
         let ast = parse(tokens.peekable()).unwrap();
 
