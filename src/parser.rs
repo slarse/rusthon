@@ -220,4 +220,14 @@ mod tests {
             "expected print: found Identifier(\"prit\") at position 0"
         )
     }
+
+    #[test]
+    fn parse_print_without_argument_is_error() {
+        let input = "print()".to_string();
+        let tokens = lexer::tokenize(input.chars());
+
+        let error = parse(tokens.peekable()).err().unwrap();
+
+        assert_eq!(error.error_string(), "expected integer: found RightParen at position 6")
+    }
 }
