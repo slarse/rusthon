@@ -22,7 +22,7 @@ jobs:
 
       - name: Cache cargo
         # Adapted from the diesel project, see https://github.com/diesel-rs/diesel/blob/df7ca0ae54a20e4c0d59c13e00d1c07667d61723/.github/workflows/ci.yml#L33-L39
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.cargo/registry
